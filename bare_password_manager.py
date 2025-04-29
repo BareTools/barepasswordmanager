@@ -216,8 +216,13 @@ class BarePasswordManager:
             font=('Montserrat', 0), anchor='w', justify='left')
         self.explanation_label.pack(side=tk.TOP, padx=2, pady=10)
 
+        # Create main toolbar frame
         toolbar = tk.Frame(self.master)
-        toolbar.pack(side=tk.TOP, fill=tk.X)
+        toolbar.pack(side=tk.TOP, fill=tk.X, padx=5, pady=5)
+
+        # Left side toolbar for action buttons
+        left_toolbar = tk.Frame(toolbar)
+        left_toolbar.pack(side=tk.LEFT)
 
         def create_icon_button(parent, color, text, command):
             frame = tk.Frame(parent)
@@ -230,56 +235,107 @@ class BarePasswordManager:
             button = tk.Button(frame, text=text, command=command)
             button.pack(side=tk.LEFT)
 
-        create_icon_button(toolbar, 'green', "Add Entry", self.add_entry_popup)
-        create_icon_button(toolbar, 'orange', "Edit Entry", self.edit_selected_entry)
-        create_icon_button(toolbar, 'blue', "Import DB", self.import_db)
-        create_icon_button(toolbar, 'purple', "Export DB", self.export_db)
-        create_icon_button(toolbar, 'red', "Change Master Password", self.change_master_password_popup)
+        # Action buttons
+        create_icon_button(left_toolbar, 'green', "Add Entry", self.add_entry_popup)
+        create_icon_button(left_toolbar, 'orange', "Edit Entry", self.edit_selected_entry)
+        create_icon_button(left_toolbar, 'blue', "Import DB", self.import_db)
+        create_icon_button(left_toolbar, 'purple', "Export DB", self.export_db)
+        create_icon_button(left_toolbar, 'red', "Change Master Password", self.change_master_password_popup)
+
+        # Right side toolbar for search
+        right_toolbar = tk.Frame(toolbar)
+        right_toolbar.pack(side=tk.RIGHT)
+
+        # Search components
+        search_frame = tk.Frame(right_toolbar)
+        search_frame.pack(side=tk.RIGHT, padx=5)
+
+        tk.Label(search_frame, text="Search:").pack(side=tk.LEFT)
+        self.search_entry = tk.Entry(search_frame, width=25)
+        self.search_entry.pack(side=tk.LEFT, padx=5)
+        self.search_entry.bind("<KeyRelease>", self.filter_treeview)
+
+        # Clear search button with better styling
+        clear_search_btn = tk.Button(
+            search_frame, 
+            text="×", 
+            command=self.clear_search,
+            font=('Arial', 10, 'bold'),
+            fg='red',
+            relief=tk.FLAT,
+            bd=0
+        )
+        clear_search_btn.pack(side=tk.LEFT)
+
+        # Create the treeview with scrollbars
+        tree_frame = tk.Frame(self.master)
+        tree_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+
+        # Vertical scrollbar
+        vsb = ttk.Scrollbar(tree_frame, orient="vertical")
+        vsb.pack(side=tk.RIGHT, fill=tk.Y)
+
+        # Horizontal scrollbar
+        hsb = ttk.Scrollbar(tree_frame, orient="horizontal")
+        hsb.pack(side=tk.BOTTOM, fill=tk.X)
 
         columns = ('Website/App', 'Username', 'Password', 'Last Updated', 'Show', 'Strength')
-        self.tree = ttk.Treeview(self.master, columns=columns, show='headings', selectmode='browse')
+        self.tree = ttk.Treeview(
+            tree_frame,
+            columns=columns,
+            show='headings',
+            selectmode='browse',
+            yscrollcommand=vsb.set,
+            xscrollcommand=hsb.set
+        )
+
+        # Configure scrollbars
+        vsb.config(command=self.tree.yview)
+        hsb.config(command=self.tree.xview)
 
         # Style for the headers
         style = ttk.Style()
         style.configure("Treeview.Heading", font=('Helvetica', 11, 'bold'), background="#d9d9d9", foreground="black")
 
+        # Configure columns
         for col in columns:
             self.tree.heading(col, text=col)
             anchor = 'center' if col != 'Show' else 'center'
             width = 60 if col == 'Show' else 150
             self.tree.column(col, width=width, anchor=anchor)
 
-        self.tree.pack(fill='both', expand=True)
+        self.tree.pack(fill=tk.BOTH, expand=True)
         self.tree.bind("<Button-1>", self.reveal_password)
 
-        for entry in self.passwords_db:
-            strength = self.calculate_password_strength(entry['password'])
-            strength_label = self.get_strength_label(strength)
-            self.tree.insert('', 'end', values=(
-                entry['website'],
-                entry['username'],
-                '*' * len(entry['password']),
-                entry['timestamp'],
-                '👁️',
-                strength_label
-            ))
+        # Populate the treeview with all entries initially
+        self.filter_treeview()
 
-    
     def change_master_password_popup(self):
         popup = tk.Toplevel(self.master)
         popup.title("Change Master Password")
 
-        tk.Label(popup, text="Old Master Password").grid(row=0, column=0)
-        old_password_entry = tk.Entry(popup, show="*")
-        old_password_entry.grid(row=0, column=1)
+        # Create a frame for better organization
+        frame = tk.Frame(popup, padx=10, pady=10)
+        frame.pack()
 
-        tk.Label(popup, text="New Master Password").grid(row=1, column=0)
-        new_password_entry = tk.Entry(popup, show="*")
-        new_password_entry.grid(row=1, column=1)
+        # Old password
+        tk.Label(frame, text="Old Master Password").grid(row=0, column=0, sticky='e')
+        old_password_entry = tk.Entry(frame, show="*")
+        old_password_entry.grid(row=0, column=1, pady=5)
 
-        tk.Label(popup, text="Confirm New Password").grid(row=2, column=0)
-        confirm_new_password_entry = tk.Entry(popup, show="*")
-        confirm_new_password_entry.grid(row=2, column=1)
+        # New password
+        tk.Label(frame, text="New Master Password").grid(row=1, column=0, sticky='e')
+        new_password_entry = tk.Entry(frame, show="*")
+        new_password_entry.grid(row=1, column=1, pady=5)
+
+        # Confirm new password
+        tk.Label(frame, text="Confirm New Password").grid(row=2, column=0, sticky='e')
+        confirm_new_password_entry = tk.Entry(frame, show="*")
+        confirm_new_password_entry.grid(row=2, column=1, pady=5)
+
+        # Button frame
+        button_frame = tk.Frame(frame)
+        button_frame.grid(row=3, column=0, columnspan=2, pady=10)
 
         def save_new_master_password():
             old_master_password = old_password_entry.get()
@@ -288,16 +344,21 @@ class BarePasswordManager:
 
             # Verify old master password
             with open("master_password.enc", "rb") as f:
-                self.salt = f.read(16)  # Read the salt
+                old_salt = f.read(16)  # Read the salt
                 encrypted_password = f.read()  # Read the encrypted password data
 
-            # Derive the key using the old master password
-            key = self.derive_key(old_master_password)
+            # Derive the old key
+            old_key = hashlib.pbkdf2_hmac('sha256', old_master_password.encode(), old_salt, 100000)
 
             try:
-                # Decrypt the old master password using the derived key
-                decrypted_password = self.decrypt_password(encrypted_password, old_master_password)
-            except ValueError as e:
+                # Decrypt with old key
+                cipher = Cipher(algorithms.AES(old_key), modes.CBC(encrypted_password[:16]), backend=default_backend())
+                decryptor = cipher.decryptor()
+                padded_data = decryptor.update(encrypted_password[16:]) + decryptor.finalize()
+                unpadder = padding.PKCS7(128).unpadder()
+                decrypted_password = unpadder.update(padded_data) + unpadder.finalize()
+                decrypted_password = decrypted_password.decode('utf-8')
+            except Exception as e:
                 messagebox.showerror("Error", f"Decryption failed: {e}")
                 return
 
@@ -305,41 +366,50 @@ class BarePasswordManager:
                 messagebox.showerror("Error", "Old master password is incorrect!")
                 return
 
-            # Check if the new passwords match
             if new_master_password != confirm_new_password:
                 messagebox.showerror("Error", "New passwords do not match!")
                 return
 
-            # Validate new password strength
             if not self.is_strong_password(new_master_password):
                 messagebox.showerror(
                     "Weak Password",
-                    "New password must be at least 12 characters long and include:\n"
-                    "- An uppercase letter\n"
-                    "- A lowercase letter\n"
-                    "- A number\n"
-                    "- A special character"
+                    "Password must be at least 12 characters long and include:\n"
+                    "- An uppercase letter\n- A lowercase letter\n"
+                    "- A number\n- A special character"
                 )
                 return
 
-            # Derive the new key and encrypt the new master password
-            self.salt = os.urandom(16)  # Generate a new salt for the new password
-            self.key = self.derive_key(new_master_password)
+            # Generate new salt and key
+            new_salt = os.urandom(16)
+            new_key = hashlib.pbkdf2_hmac('sha256', new_master_password.encode(), new_salt, 100000)
 
-            # Encrypt the new password
+            # Re-encrypt the database with the new key
+            try:
+                # Load with old key
+                self.key = old_key
+                self.load_db()
+                
+                # Save with new key
+                self.salt = new_salt
+                self.key = new_key
+                self.save_db()
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to re-encrypt database: {e}")
+                return
+
+            # Encrypt and save new master password
             encrypted_new_password = self.encrypt_password(new_master_password.encode('utf-8'))
-
-            # Save the new salt and encrypted password to the file
             with open("master_password.enc", "wb") as f:
-                f.write(self.salt)  # Write the new salt
-                f.write(encrypted_new_password)  # Write the encrypted new password
+                f.write(new_salt)
+                f.write(encrypted_new_password)
 
             messagebox.showinfo("Success", "Master password changed successfully!")
             popup.destroy()
-            self.prompt_for_login()  # Prompt to log in with the new password
+            self.prompt_for_login()
 
-        save_button = tk.Button(popup, text="Save New Master Password", command=save_new_master_password)
-        save_button.grid(row=3, column=1, pady=10)
+        # Save button
+        tk.Button(button_frame, text="Save", command=save_new_master_password).pack(side=tk.LEFT, padx=5)
+        tk.Button(button_frame, text="Cancel", command=popup.destroy).pack(side=tk.LEFT, padx=5)
 
     def add_entry_popup(self):
         popup = tk.Toplevel(self.master)
@@ -487,6 +557,36 @@ class BarePasswordManager:
         decrypted_data = unpadder.update(padded_data) + unpadder.finalize()
 
         return json.loads(decrypted_data.decode('utf-8'))  # Return the decrypted and parsed data
+    
+    # Search and filter functions
+    def filter_treeview(self, event=None):
+        search_term = self.search_entry.get().lower()
+        
+        # Clear current items
+        for item in self.tree.get_children():
+            self.tree.delete(item)
+        
+        # Filter and repopulate treeview
+        for entry in self.passwords_db:
+            website_match = search_term in entry['website'].lower()
+            username_match = search_term in entry['username'].lower()
+            
+            if search_term == "" or website_match or username_match:
+                strength = self.calculate_password_strength(entry['password'])
+                strength_label = self.get_strength_label(strength)
+                self.tree.insert('', 'end', values=(
+                    entry['website'],
+                    entry['username'],
+                    '*' * len(entry['password']),
+                    entry['timestamp'],
+                    '👁️',
+                    strength_label
+                ))
+
+    def clear_search(self):
+        """Clear the search box and reset the treeview to show all entries"""
+        self.search_entry.delete(0, tk.END)
+        self.filter_treeview()
     
     # Session timeout handling
     def update_session_timer(self):
