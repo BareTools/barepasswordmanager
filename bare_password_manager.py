@@ -9,6 +9,7 @@ from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import padding
 import json
+import re
 
 class BarePasswordManager:
     def __init__(self, master):
@@ -64,12 +65,38 @@ class BarePasswordManager:
         self.save_button = tk.Button(self.form_frame, text="Save Master Password", command=self.save_master_password)
         self.save_button.grid(row=4, column=0, columnspan=2, pady=10)
 
+    # Master password validations
+    def is_strong_password(self, password):
+        """Validates password strength: 12+ chars, upper, lower, number, special."""
+        if len(password) < 12:
+            return False
+        if not re.search(r"[A-Z]", password):
+            return False
+        if not re.search(r"[a-z]", password):
+            return False
+        if not re.search(r"\d", password):
+            return False
+        if not re.search(r"[!@#$%^&*(),.?\":{}|<>]", password):
+            return False
+        return True
+
     def save_master_password(self):
         master_password = self.master_password_entry.get()
         confirm_password = self.confirm_password_entry.get()
 
         if master_password != confirm_password:
             messagebox.showerror("Error", "Passwords do not match!")
+            return
+
+        if not self.is_strong_password(master_password):
+            messagebox.showerror(
+                "Weak Password",
+                "Password must be at least 12 characters long and include:\n"
+                "- An uppercase letter\n"
+                "- A lowercase letter\n"
+                "- A number\n"
+                "- A special character"
+            )
             return
 
         self.salt = os.urandom(16)
@@ -172,6 +199,7 @@ class BarePasswordManager:
         create_icon_button(toolbar, 'orange', "Edit Entry", self.edit_selected_entry)
         create_icon_button(toolbar, 'blue', "Import DB", self.import_db)
         create_icon_button(toolbar, 'purple', "Export DB", self.export_db)
+        create_icon_button(toolbar, 'red', "Change Master Password", self.change_master_password_popup)
 
         columns = ('Website/App', 'Username', 'Password', 'Last Updated', 'Show')
         self.tree = ttk.Treeview(self.master, columns=columns, show='headings', selectmode='browse')
@@ -193,6 +221,73 @@ class BarePasswordManager:
                 entry['timestamp'],
                 '👁️'
             ))
+    
+    def change_master_password_popup(self):
+        popup = tk.Toplevel(self.master)
+        popup.title("Change Master Password")
+
+        tk.Label(popup, text="Old Master Password").grid(row=0, column=0)
+        old_password_entry = tk.Entry(popup, show="*")
+        old_password_entry.grid(row=0, column=1)
+
+        tk.Label(popup, text="New Master Password").grid(row=1, column=0)
+        new_password_entry = tk.Entry(popup, show="*")
+        new_password_entry.grid(row=1, column=1)
+
+        tk.Label(popup, text="Confirm New Password").grid(row=2, column=0)
+        confirm_new_password_entry = tk.Entry(popup, show="*")
+        confirm_new_password_entry.grid(row=2, column=1)
+
+        def save_new_master_password():
+            old_master_password = old_password_entry.get()
+            new_master_password = new_password_entry.get()
+            confirm_new_password = confirm_new_password_entry.get()
+
+            # Verify old master password
+            with open("master_password.enc", "rb") as f:
+                self.salt = f.read(16)
+                encrypted_password = f.read()
+
+            self.key = self.derive_key(old_master_password)
+            decrypted_password = self.decrypt_password(encrypted_password)
+
+            if old_master_password != decrypted_password:
+                messagebox.showerror("Error", "Old master password is incorrect!")
+                return
+
+            # Check if the new passwords match
+            if new_master_password != confirm_new_password:
+                messagebox.showerror("Error", "New passwords do not match!")
+                return
+
+            # Validate new password strength using the existing method
+            if not self.is_strong_password(new_master_password):
+                messagebox.showerror(
+                    "Weak Password",
+                    "New password must be at least 12 characters long and include:\n"
+                    "- An uppercase letter\n"
+                    "- A lowercase letter\n"
+                    "- A number\n"
+                    "- A special character"
+                )
+                return
+
+            # Derive the new key and encrypt the new master password
+            self.salt = os.urandom(16)  # Generate a new salt
+            self.key = self.derive_key(new_master_password)
+            encrypted_new_password = self.encrypt_password(new_master_password.encode('utf-8'))
+
+            # Save the new master password to the file
+            with open("master_password.enc", "wb") as f:
+                f.write(self.salt)
+                f.write(encrypted_new_password)
+
+            messagebox.showinfo("Success", "Master password changed successfully!")
+            popup.destroy()
+            self.prompt_for_login()  # Prompt to log in with the new password
+
+        save_button = tk.Button(popup, text="Save New Master Password", command=save_new_master_password)
+        save_button.grid(row=3, column=1, pady=10)
 
     def add_entry_popup(self):
         popup = tk.Toplevel(self.master)
