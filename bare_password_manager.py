@@ -181,6 +181,18 @@ class BarePasswordManager:
         self.clear_widgets()
         self.load_db()
 
+        # How to use the app
+        self.explanation_label = tk.Label(self.master, 
+            text="Welcome to Bare Password Manager! \n\n" 
+                "This application helps you securely manage your passwords.\n" 
+                "Use the toolbar at the top to access the following features:\n\n"
+                "\u2022 Add Entry: Add new passwords for your accounts and websites.\n"
+                "\u2022 Edit Entry: Modify or update the details of your stored passwords.\n"
+                "\u2022 Change Master Password: Update your master password for added security.\n\n"
+                "Make sure to choose strong passwords and keep them safe.\n", 
+            font=('Montserrat', 0), anchor='w', justify='left')
+        self.explanation_label.pack(side=tk.TOP, padx=2, pady=10)
+
         toolbar = tk.Frame(self.master)
         toolbar.pack(side=tk.TOP, fill=tk.X)
 
@@ -225,6 +237,7 @@ class BarePasswordManager:
     def change_master_password_popup(self):
         popup = tk.Toplevel(self.master)
         popup.title("Change Master Password")
+        popup.geometry("400x350")
 
         tk.Label(popup, text="Old Master Password").grid(row=0, column=0)
         old_password_entry = tk.Entry(popup, show="*")
@@ -292,6 +305,7 @@ class BarePasswordManager:
     def add_entry_popup(self):
         popup = tk.Toplevel(self.master)
         popup.title("Add Entry")
+        popup.geometry("400x350")
 
         tk.Label(popup, text="Website/App").grid(row=0, column=0)
         website_entry = tk.Entry(popup)
