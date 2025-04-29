@@ -16,7 +16,7 @@ class BarePasswordManager:
     def __init__(self, master):
         self.master = master
         self.master.title('Bare Password Manager')
-        self.master.geometry('800x800')
+        self.master.geometry('1200x800')
 
         self.master_password = None
         self.key = None
@@ -56,7 +56,7 @@ class BarePasswordManager:
         self.title_label = tk.Label(self.form_frame, text="Create Your Master Password", font=('Arial', 16))
         self.title_label.grid(row=0, column=0, columnspan=2, pady=10)
 
-        logo = Image.open("logo.png").resize((200, 200))
+        logo = Image.open("logo.png").resize((500, 500))
         logo_img = ImageTk.PhotoImage(logo)
         self.logo_label = tk.Label(self.form_frame, image=logo_img)
         self.logo_label.image = logo_img
@@ -238,6 +238,10 @@ class BarePasswordManager:
 
         columns = ('Website/App', 'Username', 'Password', 'Last Updated', 'Show', 'Strength')
         self.tree = ttk.Treeview(self.master, columns=columns, show='headings', selectmode='browse')
+
+        # Style for the headers
+        style = ttk.Style()
+        style.configure("Treeview.Heading", font=('Helvetica', 11, 'bold'), background="#d9d9d9", foreground="black")
 
         for col in columns:
             self.tree.heading(col, text=col)
