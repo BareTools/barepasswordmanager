@@ -263,10 +263,11 @@ class BarePasswordManager:
 
         # Action buttons
         create_icon_button(left_toolbar, 'green', "Add Entry", self.add_entry_popup)
+        create_icon_button(left_toolbar, 'red', "Delete Entry", self.delete_selected_entry)
         create_icon_button(left_toolbar, 'orange', "Edit Entry", self.edit_selected_entry)
         create_icon_button(left_toolbar, 'blue', "Import DB", self.import_db)
         create_icon_button(left_toolbar, 'purple', "Export DB", self.export_db)
-        create_icon_button(left_toolbar, 'red', "Change Master Password", self.change_master_password_popup)
+        create_icon_button(left_toolbar, 'black', "Change Master Password", self.change_master_password_popup)
 
         # Right side toolbar for search
         right_toolbar = tk.Frame(toolbar)
@@ -533,6 +534,34 @@ class BarePasswordManager:
 
     def export_db(self):
         messagebox.showinfo("Export", "Export feature not yet implemented.")
+
+    def delete_selected_entry(self):
+        """Delete the currently selected entry from the database"""
+        selected_item = self.tree.selection()
+        if not selected_item:
+            messagebox.showwarning("Warning", "No entry selected!")
+            return
+        
+        # Get the values from the selected row
+        values = self.tree.item(selected_item, 'values')
+        website = values[0]
+        username = values[1]
+        
+        # Confirm deletion
+        if not messagebox.askyesno("Confirm Delete", 
+                                f"Delete entry for:\nWebsite: {website}\nUsername: {username}?"):
+            return
+        
+        # Find and remove the entry from passwords_db
+        for i, entry in enumerate(self.passwords_db):
+            if entry['website'] == website and entry['username'] == username:
+                del self.passwords_db[i]
+                break
+        
+        # Remove from treeview and save database
+        self.tree.delete(selected_item)
+        self.save_db()
+        messagebox.showinfo("Success", "Entry deleted successfully")
 
     # DB handling functions
 
