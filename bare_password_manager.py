@@ -4,6 +4,7 @@ from tkinter import ttk
 from PIL import Image, ImageTk
 import hashlib
 import os
+import sys
 from datetime import datetime
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.backends import default_backend
@@ -23,6 +24,10 @@ class BarePasswordManager:
         self.salt = None
         self.passwords_db = []  # List of dicts with Website, Username, Password, Timestamp
 
+         # Initialize AppData directory
+        self.app_data_dir = self.get_app_data_directory()
+        os.makedirs(self.app_data_dir, exist_ok=True)
+
         self.last_activity_time = time.time()  # Initialize last activity time
         self.timeout_seconds = 5 * 60  # 5 minutes timeout (customize as needed)
 
@@ -40,9 +45,30 @@ class BarePasswordManager:
         else:
             self.prompt_for_login()
 
+    # Check if master password and password database exist
+    def get_app_data_directory(self):
+        """Get the AppData directory path for the current platform"""
+        if sys.platform == 'win32':
+            app_data = os.getenv('APPDATA')
+            return os.path.join(app_data, 'BarePasswordManager')
+        elif sys.platform == 'darwin':  # macOS
+            home = os.path.expanduser('~')
+            return os.path.join(home, 'Library', 'Application Support', 'BarePasswordManager')
+        else:  # Linux/Unix
+            home = os.path.expanduser('~')
+            return os.path.join(home, '.barepasswordmanager')
+
+    def get_master_password_path(self):
+        """Get full path to master password file"""
+        return os.path.join(self.app_data_dir, 'master_password.enc')
+
+    def get_db_path(self):
+        """Get full path to password database file"""
+        return os.path.join(self.app_data_dir, 'passwords_db.enc')
+
     def check_master_password(self):
         try:
-            with open("master_password.enc", "rb") as f:
+            with open(self.get_master_password_path(), "rb") as f:
                 return True
         except FileNotFoundError:
             return False
@@ -113,7 +139,7 @@ class BarePasswordManager:
         self.key = self.derive_key(master_password)
         encrypted_password = self.encrypt_password(master_password.encode('utf-8'))
 
-        with open("master_password.enc", "wb") as f:
+        with open(self.get_master_password_path(), "wb") as f:
             f.write(self.salt)
             f.write(encrypted_password)
 
@@ -164,7 +190,7 @@ class BarePasswordManager:
         master_password = self.master_password_entry.get()
 
         # Read the salt and encrypted password from the file
-        with open("master_password.enc", "rb") as f:
+        with open(self.get_master_password_path(), "rb") as f:
             self.salt = f.read(16)  # Read the salt (first 16 bytes)
             encrypted_password = f.read()  # Read the encrypted password data
 
@@ -513,13 +539,13 @@ class BarePasswordManager:
     def save_db(self):
         # Encrypt the passwords_db and save it to a file
         encrypted_data = self.encrypt_data(self.passwords_db)
-        with open("passwords_db.enc", "wb") as f:  # Save as .enc to indicate encrypted data
+        with open(self.get_db_path(), "wb") as f:  # Save as .enc to indicate encrypted data
             f.write(encrypted_data)
 
     def load_db(self):
         # Decrypt the data before loading it into passwords_db
         try:
-            with open("passwords_db.enc", "rb") as f:
+            with open(self.get_db_path(), "rb") as f:
                 encrypted_data = f.read()
             self.passwords_db = self.decrypt_data(encrypted_data)  # Decrypt the data
         except FileNotFoundError:
